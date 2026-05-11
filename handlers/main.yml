@@ -1,0 +1,18 @@
+# =============================================================================
+# roles/vector-role/handlers/main.yml — Обработчики событий для Vector
+# =============================================================================
+---
+- name: restart vector
+  ansible.builtin.systemd:
+    name: "{{ vector_service_name }}"
+    state: restarted
+    daemon_reload: true
+  listen: "restart vector"
+  tags: [service, restart]
+
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+    daemon_reexec: false
+  listen: "reload systemd"
+  tags: [systemd, reload]
