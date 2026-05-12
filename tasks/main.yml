@@ -1,72 +1,52 @@
----
-    shell: /usr/sbin/nologin
-    create_home: false
 
-# ============================================================
-# Создание директорий
-# ============================================================
+# =============================================================================
+# Vector role tasks
+# =============================================================================
+---
+
+- name: Install Vector dependencies
+  ansible.builtin.package:
+    name:
+      - curl
+      - tar
+    state: present
 
 - name: Create Vector directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: vector
-    group: vector
+    owner: root
+    group: root
     mode: "0755"
   loop:
-    - "{{ vector_install_dir }}"
-    - "{{ vector_config_dir }}"
-
-# ============================================================
-# Скачивание Vector
-# ============================================================
+    - /etc/vector
+    - /var/lib/vector
 
 - name: Download Vector archive
   ansible.builtin.get_url:
-    url: "{{ vector_url }}"
+    url: "https://packages.timber.io/vector/0.37.1/vector-0.37.1-x86_64-unknown-linux-gnu.tar.gz"
     dest: /tmp/vector.tar.gz
     mode: "0644"
-
-# ============================================================
-# Распаковка архива
-# ============================================================
 
 - name: Extract Vector archive
   ansible.builtin.unarchive:
     src: /tmp/vector.tar.gz
-    dest: "{{ vector_install_dir }}"
+    dest: /opt/
     remote_src: true
-    extra_opts:
-      - --strip-components=1
-    creates: "{{ vector_install_dir }}/bin/vector"
-
-# ============================================================
-# Конфигурация Vector
-# ============================================================
 
 - name: Deploy Vector config
   ansible.builtin.template:
     src: vector.toml.j2
-    dest: "{{ vector_config_file }}"
-    owner: vector
-    group: vector
-    mode: "0640"
+    dest: /etc/vector/vector.toml
+    mode: "0644"
   notify: restart vector
 
-# ============================================================
-# Systemd unit
-# ============================================================
-
-- name: Deploy Vector systemd unit
+- name: Deploy systemd service
   ansible.builtin.template:
     src: vector.service.j2
     dest: /etc/systemd/system/vector.service
     mode: "0644"
   notify: restart vector
-
-# ============================================================
-# Запуск сервиса
-# ============================================================
 
 - name: Enable and start Vector
   ansible.builtin.systemd:
