@@ -33,6 +33,7 @@
     src: /tmp/vector.tar.gz
     dest: /opt/
     remote_src: true
+    creates: /opt/vector
 
 - name: Deploy Vector config
   ansible.builtin.template:
