@@ -1,28 +1,5 @@
 ---
-# ============================================================
-# Дефолтные переменные Vector role
-# ============================================================
+vector_install_dir: /opt/vector
+vector_config: /etc/vector/vector.toml
 
-vector_version: "0.37.1"
-
-# URL архива Vector
-vector_url: >-
-  https://packages.timber.io/vector/
-  {{ vector_version }}/
-  vector-{{ vector_version }}-x86_64-unknown-linux-gnu.tar.gz
-
-# Пути установки
-vector_install_dir: "/opt/vector"
-vector_config_dir: "/etc/vector"
-vector_config_file: "/etc/vector/vector.toml"
-
-# Endpoint ClickHouse
-vector_clickhouse_endpoint: "http://192.168.1.10:8123"
-
-# База и таблица
-vector_clickhouse_database: "logs"
-vector_clickhouse_table: "events"
-
-# Пользователь ClickHouse
-vector_clickhouse_user: "default"
-vector_clickhouse_password: "changeme"
+vector_url: https://packages.timber.io/vector/latest/vector-x86_64-unknown-linux-gnu.tar.gz

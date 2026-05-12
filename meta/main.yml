@@ -1,19 +1,13 @@
 ---
 galaxy_info:
-  author: Roman
-  description: Install and configure Vector
+  author: DevOps Team
+  description: Vector log agent installation and configuration
   license: MIT
   min_ansible_version: "2.14"
-
   platforms:
     - name: Ubuntu
-      versions:
-        - jammy
-        - focal
-
+      versions: [ "20.04", "22.04", "24.04" ]
     - name: Debian
-      versions:
-        - bullseye
-        - bookworm
-
-dependencies: []
+      versions: [ "11", "12" ]
+dependencies:
+  - role: bootstrap
