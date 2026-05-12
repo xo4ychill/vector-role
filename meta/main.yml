@@ -1,60 +1,19 @@
-# =============================================================================
-# roles/vector-role/meta/main.yml — Метаданные роли для Ansible Galaxy
-# Назначение: описание роли, зависимости, совместимость для публикации
-# Документация: https://docs.ansible.com/ansible/latest/dev_guide/developing_roles.html#role-metadata
-# =============================================================================
 ---
 galaxy_info:
-  # 👤 Информация об авторе
-  author: Your Name
-  company: Your Company (optional)
-  
-  # 🏷️ Идентификаторы для Ansible Galaxy
-  namespace: your_namespace          # Заменить на ваш namespace при публикации
-  role_name: vector_role             # Имя роли в Galaxy
-  description: |
-    Установка и настройка Vector (https://vector.dev/) — 
-    высокопроизводительного агента сбора и маршрутизации логов.
-    Поддерживает отправку в ClickHouse, Elasticsearch, S3 и другие стоки.
-  
-  # 🔐 Лицензия
-  license: MIT                       # Выберите подходящую: MIT, Apache-2.0, GPL-3.0 и т.д.
-  
-  # 📋 Минимальная версия Ansible
-  min_ansible_version: "2.14"        # Требуемая версия для работы роли
-  
-  # 🌍 Поддерживаемые платформы и версии ОС
+  author: Roman
+  description: Install and configure Vector
+  license: MIT
+  min_ansible_version: "2.14"
+
   platforms:
     - name: Ubuntu
       versions:
-        - "20.04"
-        - "22.04"
-        - "24.04"
+        - jammy
+        - focal
+
     - name: Debian
       versions:
-        - "11"   # Bullseye
-        - "12"   # Bookworm
-    - name: EL   # Enterprise Linux: RHEL, CentOS, AlmaLinux, Rocky
-      versions:
-        - "8"
-        - "9"
-  
-  # 🏷️ Теги для поиска в Galaxy
-  galaxy_tags:
-    - logging
-    - monitoring
-    - vector
-    - clickhouse
-    - elasticsearch
-    - observability
-    - agent
+        - bullseye
+        - bookworm
 
-# 🔗 Зависимости от других ролей
-# 💡 Если роль требует предварительной установки других компонентов
-dependencies:
-  # Пример:
-  # - role: bootstrap
-  #   when: ansible_python_version is not defined
-  # 
-  # ✅ В данном случае зависимостей нет — роль автономна
-  []
+dependencies: []

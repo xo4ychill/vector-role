@@ -1,168 +1,76 @@
-# =============================================================================
-# roles/vector-role/tasks/main.yml — Основные задачи роли Vector
-# Назначение: последовательная установка и настройка Vector agent
-# Идемпотентность: все задачи спроектированы для безопасного повторного запуска
-# =============================================================================
 ---
-# -----------------------------------------------------------------------------
-# 📦 Шаг 1: Установка зависимостей
-# -----------------------------------------------------------------------------
-- name: 📦 Install required dependencies
-  ansible.builtin.package:
-    name: "{{ vector_dependencies }}"
-    state: present
-    update_cache: true  # Обновить кэш пакетов перед установкой
-  tags: [packages, install]
+    shell: /usr/sbin/nologin
+    create_home: false
 
-# -----------------------------------------------------------------------------
-# 👤 Шаг 2: Создание системного пользователя и группы
-# -----------------------------------------------------------------------------
-- name: 👤 Create vector system group
-  ansible.builtin.group:
-    name: "{{ vector_group }}"
-    system: true        # GID < 1000, не для интерактивного входа
-    state: present
-  tags: [user, setup]
+# ============================================================
+# Создание директорий
+# ============================================================
 
-- name: 👤 Create vector system user
-  ansible.builtin.user:
-    name: "{{ vector_user }}"
-    group: "{{ vector_group }}"
-    system: true                   # Системный пользователь
-    shell: /usr/sbin/nologin       # Запрет интерактивного входа (безопасность)
-    create_home: false             # Не создавать /home/vector (не нужно)
-    password_lock: true            # Заблокировать пароль (доп. защита)
-    state: present
-  tags: [user, setup]
-
-# -----------------------------------------------------------------------------
-# 📁 Шаг 3: Создание директорий с правильными правами
-# -----------------------------------------------------------------------------
-- name: 📁 Create required directories
+- name: Create Vector directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ vector_user }}"
-    group: "{{ vector_group }}"
-    mode: "0755"  # rwxr-xr-x: чтение для всех, запись только владельцу
-  loop:
-    - "{{ vector_install_dir }}"   # /opt/vector — бинарники
-    - "{{ vector_config_dir }}"    # /etc/vector — конфиги
-    - "{{ vector_log_dir }}"       # /var/log/vector — логи
-  tags: [directories, setup]
-
-# -----------------------------------------------------------------------------
-# 📁 Создание временной директории (идемпотентно)
-# -----------------------------------------------------------------------------
-- name: 📁 Ensure temporary download directory exists
-  ansible.builtin.file:
-    path: "{{ vector_tmp_dir }}"
-    state: directory
+    owner: vector
+    group: vector
     mode: "0755"
-    owner: root
-    group: root
-  tags: [download, setup]
+  loop:
+    - "{{ vector_install_dir }}"
+    - "{{ vector_config_dir }}"
 
-# -----------------------------------------------------------------------------
-# ⬇️ Шаг 4: Скачивание бинарника Vector
-# -----------------------------------------------------------------------------
-- name: ⬇️ Download Vector archive
+# ============================================================
+# Скачивание Vector
+# ============================================================
+
+- name: Download Vector archive
   ansible.builtin.get_url:
     url: "{{ vector_url }}"
-    dest: "{{ vector_tmp_dir }}/{{ vector_filename }}"
+    dest: /tmp/vector.tar.gz
     mode: "0644"
-    timeout: 300                    # 5 минут на скачивание (для медленных сетей)
-    checksum: "{{ vector_checksum | default(omit) }}"  # SHA256 проверка (если задана)
-  register: _download_result
-  retries: 3                        # Повтор при временных ошибках сети
-  delay: 10                         # Пауза 10 сек между попытками
-  until: _download_result is success
-  tags: [download, install]
 
-# -----------------------------------------------------------------------------
-# 📦 Шаг 5: Распаковка архива в целевую директорию
-# -----------------------------------------------------------------------------
-- name: 📦 Extract Vector to install directory
+# ============================================================
+# Распаковка архива
+# ============================================================
+
+- name: Extract Vector archive
   ansible.builtin.unarchive:
-    src: "{{ vector_tmp_dir }}/{{ vector_filename }}"
+    src: /tmp/vector.tar.gz
     dest: "{{ vector_install_dir }}"
-    remote_src: true                # Архив уже на целевом хосте
-    extra_opts: [--strip-components=1]  # Убрать верхний уровень директории
-    owner: "{{ vector_user }}"
-    group: "{{ vector_group }}"
-    mode: "0755"
-    creates: "{{ vector_binary_path }}"  # Идемпотентность: не распаковывать, если уже есть
-  tags: [extract, install]
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: "{{ vector_install_dir }}/bin/vector"
 
-# -----------------------------------------------------------------------------
-# ⚙️ Шаг 6: Деплой конфигурации (Jinja2 template)
-# -----------------------------------------------------------------------------
-- name: ⚙️ Deploy Vector configuration (vector.toml)
+# ============================================================
+# Конфигурация Vector
+# ============================================================
+
+- name: Deploy Vector config
   ansible.builtin.template:
-    src: "vector.toml.j2"
+    src: vector.toml.j2
     dest: "{{ vector_config_file }}"
-    owner: "{{ vector_user }}"
-    group: "{{ vector_group }}"
-    mode: "0640"  # rw-r-----: чтение только владельцем и группой (безопасность!)
-    validate: "{{ vector_binary_path }} --validate --config %s"  # Валидация перед применением
-  notify: restart vector            # Уведомить хендлер при изменении конфига
-  tags: [config, template]
+    owner: vector
+    group: vector
+    mode: "0640"
+  notify: restart vector
 
-# -----------------------------------------------------------------------------
-# 📄 Шаг 7: Деплой systemd unit-файла
-# -----------------------------------------------------------------------------
-- name: 📄 Deploy Vector systemd unit file
+# ============================================================
+# Systemd unit
+# ============================================================
+
+- name: Deploy Vector systemd unit
   ansible.builtin.template:
-    src: "vector.service.j2"
-    dest: "/etc/systemd/system/{{ vector_service_name }}.service"
-    mode: "0644"  # r--r--r--: только чтение для всех
-  notify: reload systemd            # Перезагрузить daemon при изменении юнита
-  tags: [systemd, service]
+    src: vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    mode: "0644"
+  notify: restart vector
 
-# -----------------------------------------------------------------------------
-# ✅ Шаг 8: Валидация конфигурации (опционально, если бинарник существует)
-# -----------------------------------------------------------------------------
-- name: ✅ Validate Vector configuration
-  ansible.builtin.command:
-    cmd: "{{ vector_binary_path }} --validate --config {{ vector_config_file }}"
-  register: _validate_result
-  changed_when: false               # Валидация не меняет состояние системы
-  failed_when: false                # Не останавливать плейбук при ошибке валидации
-  ignore_errors: true
-  when: 
-    - vector_validate_config | default(true)
-    - vector_binary_path is defined
-  tags: [validate, config]
+# ============================================================
+# Запуск сервиса
+# ============================================================
 
-- name: "📋 Debug: validation result"
-  ansible.builtin.debug:
-    msg: |
-      ⚠️ Vector config validation:
-      {% if _validate_result.rc == 0 %}
-      ✅ Configuration is valid
-      {% else %}
-      ❌ Validation failed: {{ _validate_result.stderr | default(_validate_result.stdout) }}
-      {% endif %}
-  when: _validate_result is defined
-  tags: [validate, debug]
-
-# -----------------------------------------------------------------------------
-# ▶️ Шаг 9: Включение и запуск сервиса
-# -----------------------------------------------------------------------------
-- name: ▶️ Enable and start Vector service
+- name: Enable and start Vector
   ansible.builtin.systemd:
-    name: "{{ vector_service_name }}"
-    enabled: true                   # Добавить в автозагрузку
-    state: started                  # Запустить сейчас (если не запущен)
-    daemon_reload: true             # Перечитать юнит-файлы после изменений
-  tags: [service, start]
-
-# -----------------------------------------------------------------------------
-# 🧹 Шаг 10: Очистка временных файлов
-# -----------------------------------------------------------------------------
-- name: 🧹 Clean up temporary files
-  ansible.builtin.file:
-    path: "{{ vector_tmp_dir }}"
-    state: absent
-  when: cleanup_tmp_after_run | default(true)
-  tags: [cleanup]
+    name: vector
+    enabled: true
+    state: started
+    daemon_reload: true

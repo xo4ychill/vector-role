@@ -1,56 +1,20 @@
-# =============================================================================
-# roles/vector-role/templates/vector.service.j2 — Systemd unit для Vector
-# Формат: INI-style systemd unit file
-# Документация: https://www.freedesktop.org/software/systemd/man/systemd.service.html
-# =============================================================================
-
 [Unit]
-Description=Vector Log Agent — сбор и маршрутизация логов
-Documentation=https://vector.dev/docs/
-After=network.target network-online.target
-Wants=network-online.target
-# 💡 Vector не должен стартовать, если сеть не готова
+Description=Vector Log Agent
+After=network.target
 
 [Service]
 Type=simple
-User={{ vector_user }}
-Group={{ vector_group }}
-
-# 🚀 Команда запуска
+User=vector
+Group=vector
 ExecStart={{ vector_install_dir }}/bin/vector --config {{ vector_config_file }}
+Restart=always
+RestartSec=5
 
-# 🔄 Политика перезапуска при сбоях
-Restart=on-failure
-RestartSec=5s
-StartLimitBurst=3
-StartLimitIntervalSec=60
-
-# 📈 Ресурсы и лимиты
-LimitNOFILE=65536           # Увеличить лимит файловых дескрипторов (высокая нагрузка)
-LimitNPROC=4096             # Лимит процессов/потоков
-
-# 🔐 Security Hardening (Systemd sandboxing)
-# 💡 Ограничение возможностей процесса для повышения безопасности
-NoNewPrivileges=true                    # Запрет повышения привилегий (setuid и т.п.)
-ProtectSystem=strict                    # Только явно разрешённые пути — writable
-ProtectHome=true                        # Запрет доступа к /home пользователей
-ProtectKernelTunables=true              # Запрет изменения ядра
-ProtectControlGroups=true               # Запрет изменения cgroups
-PrivateTmp=true                         # Изолированный /tmp для сервиса
-
-# 📁 Разрешённые пути для записи
-ReadWritePaths={{ vector_log_dir }} {{ vector_config_dir }}
-ReadOnlyPaths=/etc/ssl/certs /usr/share/ca-certificates  # Для HTTPS
-
-# 🔑 Переменные окружения (пробрасываются в процесс)
-# 💡 Пароль передаётся через ENV, а не в конфиге (безопасность!)
-Environment="CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}"
-Environment="VECTOR_LOG={{ vector_log_level | default('info') }}"
-
-# 📝 Логирование systemd
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=vector
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ vector_config_dir }}
 
 [Install]
-WantedBy=multi-user.target  # Запускать при достижении многопользовательского режима
+WantedBy=multi-user.target

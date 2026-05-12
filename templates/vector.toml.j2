@@ -1,75 +1,22 @@
-# =============================================================================
-# roles/vector-role/templates/vector.toml.j2 — Конфигурация Vector
-# Формат: TOML (Tom's Obvious, Minimal Language)
-# Генерируется через Jinja2 template engine из Ansible
-# Документация: https://vector.dev/docs/reference/configuration/
-# =============================================================================
+# ============================================================
+# Источник логов
+# ============================================================
 
-# 📋 Глобальные настройки агента
-# -----------------------------------------------------------------------------
-# 🎯 Уровень логирования: trace < debug < info < warn < error
-data_dir = "{{ vector_log_dir }}"
-log_schema.host_key = "host"
-
-# 🧭 Настройки источника данных (source)
-# -----------------------------------------------------------------------------
-# 📥 Источник: чтение логов из stdin в JSON-формате
-# 💡 Альтернативы: file, journald, syslog, docker_logs и др.
-[sources.stdin_logs]
+[sources.logs]
 type = "stdin"
-decoding.codec = "json"
 
-# 🔄 Трансформации данных (опционально — раскомментировать при необходимости)
-# -----------------------------------------------------------------------------
-# # 🧹 Парсинг и очистка логов
-# [transforms.parse_logs]
-# type = "remap"
-# inputs = ["stdin_logs"]
-# source = '''
-#   .parsed = parse_json!(.message)
-#   .timestamp = now()
-#   del(.message)
-# '''
+# ============================================================
+# Отправка логов в ClickHouse
+# ============================================================
 
-# 📤 Sink: отправка данных в ClickHouse
-# -----------------------------------------------------------------------------
 [sinks.clickhouse]
 type = "clickhouse"
-inputs = ["stdin_logs"]  # Или ["parse_logs"], если включена трансформация
+inputs = ["logs"]
 
-# 🔗 Подключение к базе данных
 endpoint = "{{ vector_clickhouse_endpoint }}"
 database = "{{ vector_clickhouse_database }}"
 table = "{{ vector_clickhouse_table }}"
 
-# 🔐 Аутентификация
-# 💡 Пароль берётся из переменной окружения для безопасности
-# ${CLICKHOUSE_PASSWORD:-fallback} — использовать ENV или дефолт
-auth.username = "{{ vector_clickhouse_user }}"
-auth.password = "${CLICKHOUSE_PASSWORD:-{{ vector_clickhouse_password }}}"
-
-# 🗂️ Маппинг полей → колонки ClickHouse
-# 💡 Имена слева — из источника, справа — колонки в таблице БД
-columns.timestamp = "timestamp"
-columns.message = "message"
-columns.level = "level"
-columns.host = "host"
-
-# 📦 Batch-параметры: оптимизация сетевых запросов
-# 💡 Баланс между задержкой и нагрузкой на сеть/БД
-batch.max_events = {{ vector_batch_max_events }}
-batch.timeout_secs = {{ vector_batch_timeout_secs }}
-
-# 🔄 Retry-параметры: поведение при ошибках отправки
-request.retry_attempts = 3
-request.retry_initial_backoff_secs = 1
-
-# 📁 Fallback: запись в файл для отладки (раскомментировать при необходимости)
-# -----------------------------------------------------------------------------
-# # 💡 Используется, если отправка в ClickHouse не удалась
-# [sinks.file_debug]
-# type = "file"
-# inputs = ["stdin_logs"]
-# path = "{{ vector_output_path }}"
-# encoding.codec = "json"
-# compression = "gzip"  # Опционально: сжатие для экономии места
+auth.strategy = "basic"
+auth.user = "{{ vector_clickhouse_user }}"
+auth.password = "{{ vector_clickhouse_password }}"
