@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  author: DevOps Team
+  author: xo4ychill
   description: Vector log agent installation and configuration
   license: MIT
   min_ansible_version: "2.14"
