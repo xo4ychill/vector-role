@@ -1,5 +1,57 @@
 ---
-vector_install_dir: /opt/vector
-vector_config: /etc/vector/vector.toml
+# 📦 Зависимости для работы Vector + утилиты для распаковки .tar.xz
+vector_dependencies:
+  - curl
+  - ca-certificates
+  - xz-utils          # ✅ Для распаковки .tar.xz архивов
+  - gzip              # ✅ На всякий случай, если попадётся .tar.gz
+  - file              # Для валидации типа файла
 
-vector_url: https://packages.timber.io/vector/latest/vector-x86_64-unknown-linux-gnu.tar.gz
+# 📁 Пути (соответствуют рекомендациям Vector и systemd)
+vector_install_dir: "/opt/vector"
+vector_config_dir: "/etc/vector"
+vector_config_file: "{{ vector_config_dir }}/vector.toml"
+vector_log_dir: "/var/log/vector"
+
+# 🌐 Версия и URL загрузки (динамическое формирование имени архива)
+vector_version: "0.37.1"
+# ✅ GitHub Releases — официальный источник бинарников Vector
+vector_github_base: "https://github.com/vectordotdev/vector/releases/download"
+# ✅ Версия с префиксом 'v' для GitHub URL
+vector_version_tag: "v{{ vector_version }}"
+vector_arch: "{{ 'x86_64' if ansible_architecture == 'x86_64' else 'aarch64' }}"
+vector_os: "{{ 'unknown-linux-gnu' if ansible_system == 'Linux' else 'unknown-linux-musl' }}"
+vector_filename: "vector-{{ vector_version }}-{{ vector_arch }}-{{ vector_os }}.tar.gz"
+# ✅ Корректный URL с префиксом 'v' в пути
+vector_url: "{{ vector_github_base }}/{{ vector_version_tag }}/{{ vector_filename }}"
+
+# 📦 Опциональная проверка целостности архива (SHA256)
+# Пример: vector_checksum: "sha256:abc123def456..."
+# Если не задана — проверка пропускается (безопасно для dev/stage)
+vector_checksum: ""
+
+# 🔗 Интеграция с ClickHouse: безопасное обращение к группе
+# 💡 Если группа clickhouse пуста, используется localhost fallback
+vector_clickhouse_endpoint: >-
+  {{ 
+    (
+      hostvars[groups['clickhouse'][0]].clickhouse_endpoint 
+      if (groups['clickhouse'] | default([]) | length > 0 and groups['clickhouse'][0] in hostvars)
+      else 'http://127.0.0.1:8123'
+    ) | trim 
+  }}
+
+# 🗄️ База и таблица
+vector_clickhouse_database: "{{ clickhouse_database | default('logs') }}"
+vector_clickhouse_table: "{{ clickhouse_table | default('events') }}"
+
+# 👤 Пользователь для аутентификации
+vector_clickhouse_user: "default"
+# 🔐 Пароль для ClickHouse: приоритет env-переменной, затем безопасный дефолт
+# 💡 lookup() выполняется на Ansible-контроллере при загрузке переменных
+vector_clickhouse_password: "{{ lookup('env', 'CLICKHOUSE_PASSWORD') | default('your_secure_password', true) }}"
+
+# ⚙️ Настройки batch-отправки в ClickHouse
+vector_batch_max_events: 5000        # Отправлять батч после N событий
+vector_batch_timeout_secs: 2         # Или через N секунд
+vector_output_path: "{{ vector_log_dir }}/output.log"  # Fallback для отладки

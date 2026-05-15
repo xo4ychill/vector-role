@@ -1,0 +1,62 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+
+  tasks:
+
+    # =========================================================================
+    # Check vector binary
+    # =========================================================================
+
+    - name: Check vector binary exists
+      ansible.builtin.stat:
+        path: /opt/vector/bin/vector
+      register: vector_binary
+
+    - name: Assert vector binary exists
+      ansible.builtin.assert:
+        that:
+          - vector_binary.stat.exists
+          - vector_binary.stat.executable
+
+    # =========================================================================
+    # Check config
+    # =========================================================================
+
+    - name: Check vector config exists
+      ansible.builtin.stat:
+        path: /etc/vector/vector.toml
+      register: vector_config
+
+    - name: Assert vector config exists
+      ansible.builtin.assert:
+        that:
+          - vector_config.stat.exists
+
+    # =========================================================================
+    # Validate config
+    # =========================================================================
+
+    - name: Validate vector config
+      ansible.builtin.command:
+        cmd: /opt/vector/bin/vector validate --config /etc/vector/vector.toml
+      register: vector_validate
+      changed_when: false
+
+    - name: Assert vector config valid
+      ansible.builtin.assert:
+        that:
+          - vector_validate.rc == 0
+
+    # =========================================================================
+    # Check service
+    # =========================================================================
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert vector service running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['vector.service'].state == 'running'

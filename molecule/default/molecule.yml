@@ -1,0 +1,27 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+  - name: ubuntu
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    command: /lib/systemd/systemd
+    cgroupns_mode: host
+
+  - name: oraclelinux
+    image: geerlingguy/docker-rockylinux9-ansible
+    pre_build_image: true
+    privileged: true
+    command: /usr/sbin/init
+    cgroupns_mode: host
+
+provisioner:
+  name: ansible
+
+verifier:
+  name: ansible

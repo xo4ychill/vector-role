@@ -1,0 +1,24 @@
+---
+- name: 🔧 Prepare containers for Ansible
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure /tmp/.ansible exists and is writable
+      ansible.builtin.file:
+        path: /tmp/.ansible
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Ensure python3 is available (Ubuntu)
+      ansible.builtin.package:
+        name: python3
+        state: present
+      when: ansible_distribution | default('') == 'Ubuntu'
+
+    - name: Ensure python3 is available (OracleLinux)
+      ansible.builtin.package:
+        name: python3
+        state: present
+      when: ansible_os_family | default('') == 'RedHat'
